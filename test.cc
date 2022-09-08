@@ -9,6 +9,7 @@
 
 void transform(std::pair<int, std::set<int>>* R, int k, int m, int max) {
 
+#pragma omp for
 	for (size_t i = 0; i < k; i++) {
 
 		std::set<int> temp = {};
@@ -42,21 +43,30 @@ void merge (std::pair<int, std::set<int>>* R1, std::pair<int, std::set<int>>* R2
 				break;
 
 			}
-
-			s.insert(R1[i].first);
-			res.push_back(R1[i]);
-
 		} 
 	}
 
+
 	for (size_t j = 0; j < k; j++) {
 
-		if (s.find(R2[j].first) == s.end())
-			res.push_back(R2[j]);
-
+		if (s.find(R1[j].first) == s.end()) {
+			res.push_back(R1[j]);
+		}
 	}
 
+
+	for (size_t j = 0; j < k; j++) {
+
+		if (s.find(R2[j].first) == s.end()) {
+			res.push_back(R2[j]);
+		}
+
+	}
+	
 	R1 = &res[0];
+
+	for (auto e: R1[4].second)
+		printf("%d\t", e);
 
 }
 
@@ -140,16 +150,12 @@ int main(int argc, char *argv[]) {
 	R_total[0] = r1;
 	R_total[1] = r2;
 
-	// RRRIDS* test = merge(R_total, k, m);
-	// for (auto e: r2[0].second)
-	// 	printf("%d\t", e);
-	// merge(r1, r2, k);
-	// for (auto e: r1[1].second)
-	// 	printf("%d\t", e);
-
 	reduce (R_total, m, k);
-	for (auto e: R_total[0][1].second)
-		printf("%d\t", e);	
+
+	RRRIDS* final = (RRRIDS*)malloc(sizeof(RRRIDS));
+	final = R_total[0];
+	for (auto e: final[4].second)
+		// printf("%d\t", e);	
 
 
 	return 0;
