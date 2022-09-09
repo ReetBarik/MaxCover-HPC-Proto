@@ -1,5 +1,6 @@
 #include <vector>
 #include <iostream>
+#include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <algorithm>
@@ -10,7 +11,7 @@
 void transform(std::pair<int, std::set<int>>* R, int k, int m, int max) {
 
 #pragma omp for
-	for (size_t i = 0; i < k; i++) {
+	for (size_t i = 1; i <= k; i++) {
 
 		std::set<int> temp = {};
 		
@@ -22,63 +23,108 @@ void transform(std::pair<int, std::set<int>>* R, int k, int m, int max) {
 }
 
 
-void merge (std::pair<int, std::set<int>>* R1, std::pair<int, std::set<int>>* R2, int k) {
+void merge (std::pair<int, std::set<int>>* R1, std::pair<int, std::set<int>>* R2) {
 
+	 
 	std::set<int> s = {};
 	std::vector<std::pair<int, std::set<int>>> res;
 
+	size_t k1 = R1[0].first;
+	size_t k2 = R2[0].first;
 
-	for (size_t i = 0; i < k; i++) {
+	for (size_t i = 1; i <= k1; i++) {
 
-		for (size_t j = 0; j < k; j++) {
+		for (size_t j = 1; j <= k2; j++) {
 
 			if (R1[i].first == R2[j].first) {
-
-				for (auto e: R2[j].second) {
-					R1[i].second.insert(e);
+				// std::cout << R1[i].first << '\n';
+				std::set<int> temp = {};
+				for (auto e: R1[i].second) {
+					
+					temp.insert(e);
+					// std::cout << e << '\t';
 				}
-
+				// std::cout << '\n';
+				for (auto e: R2[j].second) {
+					
+					temp.insert(e);
+					// std::cout << e << '\t';
+				}
+				// std::cout << '\n';
 				s.insert(R1[i].first);
-				res.push_back(R1[i]);
+				res.push_back(std::make_pair(R1[i].first, temp));
+				// std::cout << "Boo\n";
 				break;
 
 			}
 		} 
 	}
 
+	int uncommon = 0;
 
-	for (size_t j = 0; j < k; j++) {
+	for (size_t j = 1; j <= k1; j++) {
 
 		if (s.find(R1[j].first) == s.end()) {
-			res.push_back(R1[j]);
+			std::set<int> temp = {};
+			for (auto e: R1[j].second) {
+					
+					temp.insert(e);
+					// std::cout << e << '\t';
+				}
+			res.push_back(std::make_pair(R1[j].first, temp));
+			// std::cout << "Boo\n";
+			uncommon += 1;
 		}
 	}
 
 
-	for (size_t j = 0; j < k; j++) {
+	for (size_t j = 1; j <= k2; j++) {
 
 		if (s.find(R2[j].first) == s.end()) {
-			res.push_back(R2[j]);
+			std::set<int> temp = {};
+			for (auto e: R2[j].second) {
+					
+					temp.insert(e);
+					// std::cout << e << '\t';
+				}
+			res.push_back(std::make_pair(R2[j].first, temp));
+			// std::cout << "Boo\n";
+			uncommon += 1;
 		}
 
 	}
-	
-	R1 = &res[0];
 
-	for (auto e: R1[4].second)
-		printf("%d\t", e);
+
+	std::pair<int, std::set<int>> temp;
+	temp.first = res.size();
+	temp.second = {};
+	std::vector<std::pair<int, std::set<int>>>::iterator it;
+	it = res.begin();
+  	it = res.insert ( it , temp );
+
+
+  	for (size_t i = 0; i < res.size(); i++) {
+
+  		R1[i].first = res[i].first;
+  		R1[i].second.clear();
+  		for (auto e: res[i].second) {
+  			R1[i].second.insert(e);
+  		} 
+  	}
 
 }
 
 
-void reduce (std::pair<int, std::set<int>>** R, int m, int k) {
+void reduce (std::pair<int, std::set<int>>** R, int m) {
 
 	for (size_t i = 0; i < std::log2(m); ++i) {
 #pragma omp for
-		for (size_t j = 0; j < m; j = j + (2 * (i + 1)))		
-			merge(R[j], R[j + (int)std::pow(2,i)], k);
-
+		for (size_t j = 0; j < m; j = j + (2 * (i + 1))) {
+			
+			merge(R[j], R[j + (int)std::pow(2,i)]);	
+		}		
 	}
+	
 }
 
 int main(int argc, char *argv[]) {
@@ -86,22 +132,30 @@ int main(int argc, char *argv[]) {
 	size_t k = 4;
 	size_t m = 2;
 
-	using RRR = std::set<int>;
-	using RRRIDS = std::pair<int, RRR>;
+	std::pair<int, std::set<int>>* r1 = new std::pair<int, std::set<int>>[m * k + 1];
+	std::pair<int, std::set<int>>* r2 = new std::pair<int, std::set<int>>[m * k + 1];
 
-	std::vector<RRRIDS> R1(k);
-	std::vector<RRRIDS> R2(k);
+	r1[0].first = k;
+	r1[1].first = 1;
+	r1[2].first = 10;
+	r1[3].first = 5;
+	r1[4].first = 7;
+	r1[0].second = {};
+	r1[1].second = {};
+	r1[2].second = {};
+	r1[3].second = {};
+	r1[4].second = {};
 
-	R1[0].first = 1;
-	R1[1].first = 10;
-	R1[2].first = 5;
-	R1[3].first = 7;
-
-
-	R2[0].first = 1;
-	R2[1].first = 10;
-	R2[2].first = 7;
-	R2[3].first = 3;
+	r2[0].first = k;
+	r2[1].first = 1;
+	r2[2].first = 10;
+	r2[3].first = 7;
+	r2[4].first = 3;
+	r2[0].second = {};
+	r2[1].second = {};
+	r2[2].second = {};
+	r2[3].second = {};
+	r2[4].second = {};
 
 
 	std::vector<int> v11 = {1,4,3,7,10,11,15};
@@ -116,46 +170,41 @@ int main(int argc, char *argv[]) {
 	std::vector<int> v24 = {12,13,8};
 
 	for (auto e: v11)
-		R1[0].second.insert(e);
+		r1[1].second.insert(e);
 
 	for (auto e: v12)
-		R1[1].second.insert(e);
+		r1[2].second.insert(e);
 	
 	for (auto e: v13)
-		R1[2].second.insert(e);
+		r1[3].second.insert(e);
 
 	for (auto e: v14)
-		R1[3].second.insert(e);
+		r1[4].second.insert(e);
 	
 	for (auto e: v21)
-		R2[0].second.insert(e);
+		r2[1].second.insert(e);
 
 	for (auto e: v22)
-		R2[1].second.insert(e);
+		r2[2].second.insert(e);
 	
 	for (auto e: v23)
-		R2[2].second.insert(e);
+		r2[3].second.insert(e);
 
 	for (auto e: v24)
-		R2[3].second.insert(e);
+		r2[4].second.insert(e);
 
-	RRRIDS* r1 = &R1[0];
-	RRRIDS* r2 = &R2[0];
 
-	RRRIDS* res = (RRRIDS*)malloc(sizeof(RRRIDS) * k);
 	transform(r1, k, 0, 15);
 	transform(r2, k, 1, 15);
 
-	RRRIDS** R_total = (RRRIDS**)malloc(sizeof(RRRIDS*) * m);
+	std::pair<int, std::set<int>>** R_total = (std::pair<int, std::set<int>>**)malloc(sizeof(std::pair<int, std::set<int>>*) * m);
 	R_total[0] = r1;
 	R_total[1] = r2;
+	
+	reduce (R_total, m);
 
-	reduce (R_total, m, k);
-
-	RRRIDS* final = (RRRIDS*)malloc(sizeof(RRRIDS));
+	std::pair<int, std::set<int>>* final = (std::pair<int, std::set<int>>*)malloc(sizeof(std::pair<int, std::set<int>>));
 	final = R_total[0];
-	for (auto e: final[4].second)
-		// printf("%d\t", e);	
 
 
 	return 0;
