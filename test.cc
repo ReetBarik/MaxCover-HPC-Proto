@@ -127,6 +127,46 @@ void reduce (std::pair<int, std::set<int>>** R, int m) {
 	
 }
 
+std::vector<int> max_cover(std::vector<std::pair<int, std::set<int>>> Final, int k) {
+
+	std::vector<int> result;
+
+
+	for (size_t i = 0; i < k; i++) {
+
+		int max = 0;
+		int max_pos = -1;
+#pragma omp for
+		for (int j = 0; j < Final.size(); j++) {
+			// std::cout << Final[j].second.size() << std::endl;
+			if (Final[j].second.size() >= max) {
+				max_pos = j;
+				max = Final[j].second.size();
+			}
+
+		}
+
+		result.push_back(Final[max_pos].first);
+		
+#pragma omp for
+		for (size_t j = 0; j < Final.size(); j++) {
+
+			if(j != max_pos) {
+
+				for (auto e: Final[max_pos].second) {
+					Final[j].second.erase(e);
+				}
+
+			}
+		}
+
+		Final.erase(Final.begin() + max_pos);
+	}
+
+	return result;
+
+}
+
 int main(int argc, char *argv[]) {
 
 	size_t k = 4;
@@ -203,9 +243,17 @@ int main(int argc, char *argv[]) {
 	
 	reduce (R_total, m);
 
-	std::pair<int, std::set<int>>* final = (std::pair<int, std::set<int>>*)malloc(sizeof(std::pair<int, std::set<int>>));
-	final = R_total[0];
+	std::vector<std::pair<int, std::set<int>>> final(R_total[0][0].first);
+	
+	for (size_t i = 1; i <= R_total[0][0].first; i++) {
+		
+		for (auto e: R_total[0][i].second) {
+				final[i - 1].second.insert(e);	
+		}
+		final[i - 1].first = R_total[0][i].first;
+	}
 
+	std::vector<int> seeds = max_cover(final, k);
 
 	return 0;
 	
