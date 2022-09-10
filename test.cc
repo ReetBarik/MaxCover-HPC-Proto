@@ -7,6 +7,7 @@
 #include <set>
 #include <omp.h>
 #include <cmath>
+#include "bitmask.h"
 
 void transform(std::pair<int, std::set<int>>* R, int k, int m, int max) {
 
@@ -127,7 +128,7 @@ void reduce (std::pair<int, std::set<int>>** R, int m) {
 	
 }
 
-std::vector<int> max_cover(std::vector<std::pair<int, std::set<int>>> Final, int k) {
+std::vector<int> max_cover_naive(std::vector<std::pair<int, std::set<int>>> Final, int k) {
 
 	std::vector<int> result;
 
@@ -138,7 +139,7 @@ std::vector<int> max_cover(std::vector<std::pair<int, std::set<int>>> Final, int
 		int max_pos = -1;
 #pragma omp for
 		for (int j = 0; j < Final.size(); j++) {
-			// std::cout << Final[j].second.size() << std::endl;
+			
 			if (Final[j].second.size() >= max) {
 				max_pos = j;
 				max = Final[j].second.size();
@@ -147,7 +148,7 @@ std::vector<int> max_cover(std::vector<std::pair<int, std::set<int>>> Final, int
 		}
 
 		result.push_back(Final[max_pos].first);
-		
+
 #pragma omp for
 		for (size_t j = 0; j < Final.size(); j++) {
 
@@ -165,6 +166,48 @@ std::vector<int> max_cover(std::vector<std::pair<int, std::set<int>>> Final, int
 
 	return result;
 
+}
+
+std::vector<int> max_cover(std::vector<std::pair<int, std::set<int>>> Final, int k, int theta) {
+
+	Bitmask<int> covered(theta);
+	std::vector<int> result;
+
+
+	for (size_t i = 0; i < k; i++) {
+
+		int max = 0;
+		int max_pos = -1;
+#pragma omp for				
+		for (int j = 0; j < Final.size(); j++) {
+
+			if (Final[j].second.size() >= max) {
+				max_pos = j;
+				max = Final[j].second.size();
+			}
+
+		}
+		result.push_back(Final[max_pos].first);
+
+		for (auto e: Final[max_pos].second) {
+			covered.set(e);
+		}
+
+#pragma omp for
+		for (int j = 0; j < Final.size(); j++) {
+
+			if(j != max_pos) {
+				for (auto e = Final[j].second.begin(); e != Final[j].second.end(); ) {
+					if (covered.get(*e))
+						e = Final[j].second.erase(e);
+					else
+						e++;
+				}
+			}
+		}
+		Final.erase(Final.begin() + max_pos);
+	}
+	return result;
 }
 
 int main(int argc, char *argv[]) {
@@ -253,9 +296,8 @@ int main(int argc, char *argv[]) {
 		final[i - 1].first = R_total[0][i].first;
 	}
 
-	std::vector<int> seeds = max_cover(final, k);
+	std::vector<int> seeds = max_cover(final, k, 30);
 
 	return 0;
-	
 	
 }
