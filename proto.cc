@@ -5,7 +5,7 @@ int main(int argc, char *argv[]) {
 
 	size_t k = 4;
 	size_t m = 2;
-
+	int rank, p;
 	MPI_Init(&argc,&argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &p);
@@ -106,7 +106,7 @@ int main(int argc, char *argv[]) {
 
 		int* buffer = (int*)malloc(m * sizeof(int));
 
-		MPI_Gatherv(&total_size, 1, MPI_INT, buffer, counts, displacements, MPI_INT, 0, MPI_COMM_WORLD);
+		MPI_Gatherv(&total_size, 1, MPI_INT, buffer, counts, displacement, MPI_INT, 0, MPI_COMM_WORLD);
 
 		for (size_t i = 0; i < m; ++i) {
 			std::cout << buffer[i] << " ";
