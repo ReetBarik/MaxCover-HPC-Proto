@@ -108,16 +108,33 @@ int main(int argc, char *argv[]) {
 
 		MPI_Gatherv(&total_size, 1, MPI_INT, buffer, counts, displacement, MPI_INT, 0, MPI_COMM_WORLD);
 
+		// for (size_t i = 0; i < m; ++i) {
+		// 	std::cout << buffer[i] << " ";
+		// }
+		// free(buffer);
+
+		int bufferSize = 0;
+#pragma omp parallel for reduction(+ : bufferSize)
+      	for (size_t i = 0; i < m; ++i)
+      	{
+        	bufferSize += buffer[i];
+      	}
+
+      	bigBuffer = (int*)malloc(bufferSize * sizeof(int));
+
+#pragma omp for
 		for (size_t i = 0; i < m; ++i) {
-			std::cout << buffer[i] << " ";
+			displacement[i] = buffer[i];
 		}
-		free(buffer);
+
+      	MPI_Gatherv(packed, total_size, MPI_INT, bigBuffer, buffer, displacement, MPI_INT, 0, MPI_COMM_WORLD);
+
 
 	}
 	else {
 
 		MPI_Gatherv(&total_size, 1, MPI_INT, NULL, NULL, NULL, MPI_INT, 0, MPI_COMM_WORLD);
-
+		MPI_Gatherv(packed, total_size, MPI_INT, NULL, NULL, NULL, MPI_INT, 0, MPI_COMM_WORLD);
 
 	}
 	
