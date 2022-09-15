@@ -3,14 +3,15 @@
 
 int main(int argc, char *argv[]) {
 
+	// mpicc -o pr proto.cc -fopenmp
+
 	size_t k = 4;
-	size_t m = 2;
 	int rank, p;
 	MPI_Init(&argc,&argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &p);
 
-    std::pair<int, std::set<int>>* r = new std::pair<int, std::set<int>>[m * k + 1];
+    std::pair<int, std::set<int>>* r = new std::pair<int, std::set<int>>[p * k + 1];
 
 	if (rank == 0) {
 		
@@ -77,7 +78,7 @@ int main(int argc, char *argv[]) {
 
 	}
 	
-	transform(r, k, 0, 15);
+	transform(r, k, rank, 15);
 
 
 	int count = 0;
@@ -95,40 +96,80 @@ int main(int argc, char *argv[]) {
 
 	if (rank == 0) {
 
-		int displacement[m] = {};
-		int counts[m] = {};
+		int displacement[p] = {};
+		int counts[p] = {};
 
 #pragma omp for
-		for (size_t i = 0; i < m; ++i) {
+		for (size_t i = 0; i < p; ++i) {
 			displacement[i] = i;
 			counts[i] = 1;
 		}
 
-		int* buffer = (int*)malloc(m * sizeof(int));
+		int* buffer = (int*)malloc(p * sizeof(int));
 
 		MPI_Gatherv(&total_size, 1, MPI_INT, buffer, counts, displacement, MPI_INT, 0, MPI_COMM_WORLD);
 
-		// for (size_t i = 0; i < m; ++i) {
-		// 	std::cout << buffer[i] << " ";
-		// }
-		// free(buffer);
-
 		int bufferSize = 0;
 #pragma omp parallel for reduction(+ : bufferSize)
-      	for (size_t i = 0; i < m; ++i)
+      	for (size_t i = 0; i < p; ++i)
       	{
         	bufferSize += buffer[i];
       	}
 
-      	bigBuffer = (int*)malloc(bufferSize * sizeof(int));
+      	int* bigBuffer = (int*)malloc(bufferSize * sizeof(int));
 
 #pragma omp for
-		for (size_t i = 0; i < m; ++i) {
-			displacement[i] = buffer[i];
+		for (size_t i = 1; i < p; ++i) {
+			displacement[i] = buffer[i - 1];
 		}
+		displacement[0] = 0;
 
       	MPI_Gatherv(packed, total_size, MPI_INT, bigBuffer, buffer, displacement, MPI_INT, 0, MPI_COMM_WORLD);
 
+      	int** deLinearize = (int **)malloc(p * sizeof(int *));
+      	std::pair<int, std::set<int>>** R_total = (std::pair<int, std::set<int>>**)malloc(sizeof(std::pair<int, std::set<int>>*) * p);
+      	std::vector<std::vector<std::pair<int, std::set<int>>>> r_unpack(p);
+
+#pragma omp for
+      	for (size_t i = 0; i < p; i++) {
+
+      		int start, end;
+      		if (i == 0)
+      			start = 0;
+      		else 
+      			start = buffer[i - 1];
+      		end = start + buffer[i];
+
+      		deLinearize[i] = (int *)malloc(buffer[i] * sizeof(int));
+      		
+      		for(size_t j = start; j < end; j++) {
+      			deLinearize[i][j - start] = bigBuffer[j];
+      		}
+
+      		r_unpack[i] = unpack(deLinearize[i]);
+
+      		R_total[i] = &r_unpack[i][0];      		
+      	}
+
+      	reduce (R_total, p);
+
+		free(buffer);
+		free(bigBuffer);
+
+		std::vector<std::pair<int, std::set<int>>> final(R_total[0][0].first);
+
+		for (size_t i = 1; i <= R_total[0][0].first; i++) {
+			
+			for (auto e: R_total[0][i].second) {
+					final[i - 1].second.insert(e);	
+			}
+			final[i - 1].first = R_total[0][i].first;
+		}
+
+		std::vector<int> seeds = max_cover(final, k, 30);
+
+		// for (auto e: seeds)
+		// 	std::cout << e << " ";
 
 	}
 	else {
